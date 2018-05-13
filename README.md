@@ -1,10 +1,10 @@
 # NIPS2017: Learning to run
 
-This repository contains software required for participation in the NIPS 2017 Challenge: Learning to Run. See more details about the challenge [here](https://www.crowdai.org/challenges/nips-2017-learning-to-run). **Please read about the latest changes and the logistics of the second round [here](https://github.com/stanfordnmbl/osim-rl/tree/master/docs) (last update November 6th).**
+This repository contains software required for participation in the NIPS 2017 Challenge: Learning to Run. See more details about the challenge [here](https://www.crowdai.org/challenges/nips-2017-learning-to-run).
 
 In this competition, you are tasked with developing a controller to enable a physiologically-based human model to navigate a complex obstacle course as quickly as possible. You are provided with a human musculoskeletal model and a physics-based simulation environment where you can synthesize physically and physiologically accurate motion. Potential obstacles include external obstacles like steps, or a slippery floor, along with internal obstacles like muscle weakness or motor noise. You are scored based on the distance you travel through the obstacle course in a set amount of time.
 
-![HUMAN environment](https://github.com/kidzik/osim-rl/blob/master/demo/training.gif)
+![HUMAN environment](./demo/training.gif)
 
 To model physics and biomechanics we use [OpenSim](https://github.com/opensim-org/opensim-core) - a biomechanical physics environment for musculoskeletal simulations.
 
@@ -125,50 +125,6 @@ The trial ends either if the pelvis of the model goes below `0.65` meters or if 
 After each iteration you get a reward equal to the change of the `x` axis of pelvis during this iteration minus the magnitude of the ligament forces used in that iteration.
 
 You can test your model on your local machine. For submission, you will need to interact with the remote environment: [crowdAI](https://www.crowdai.org/challenges/nips-2017-learning-to-run) sends you the current `observation` and you need to send back the action you take in the given state. You will be evaluated at three different levels of difficulty. For details, please refer to [Details of the environment](#details-of-the-environment).
-
-### Submission
-
-Assuming your controller is trained and is represented as a function `my_controller(observation)` returning an `action` you can submit it to [crowdAI](https://www.crowdai.org/challenges/nips-2017-learning-to-run) through interaction with an environment there:
-
-```python
-import opensim as osim
-from osim.http.client import Client
-from osim.env import RunEnv
-
-# Settings
-remote_base = "http://grader.crowdai.org:1729"
-crowdai_token = "[YOUR_CROWD_AI_TOKEN_HERE]"
-
-client = Client(remote_base)
-
-# Create environment
-observation = client.env_create(crowdai_token)
-
-# IMPLEMENTATION OF YOUR CONTROLLER
-# my_controller = ... (for example the one trained in keras_rl)
-
-while True:
-    [observation, reward, done, info] = client.env_step(my_controller(observation), True)
-    print(observation)
-    if done:
-        observation = client.env_reset()
-        if not observation:
-            break
-
-client.submit()
-```
-
-In the place of `[YOUR_CROWD_AI_TOKEN_HERE]` put your token from the profile page from [crowdai.org](http://crowdai.org/) website.
-
-Note that during the submission, the environment will get restarted. Since the environment is stochastic, you will need to submit three trials -- this way we make sure that your model is robust.
-
-### Rules
-
-In order to avoid overfitting to the training environment, the top participants (those who obtained 15.0 points or more) will be asked to resubmit their solutions in the second round of the challenge. Environments in the second round will have the same structure but **10 obstacles** and different seeds. In each submission, there will be **10 simulation**. Each participant will have a limit of **3 submissions**. The final ranking will be based on the results from the second round.
-
-Additional rules:
-* You are not allowed to use external datasets (e.g., kinematics of people walking)
-* Organizers reserve the right to modify challenge rules as required.
 
 ## Details of the environment
 
