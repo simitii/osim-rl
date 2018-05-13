@@ -4,6 +4,8 @@
 # a farm should consist of a pool of instances
 # and expose those instances as one giant callable class
 
+import numpy as np
+
 import multiprocessing,time,random,threading
 from multiprocessing import Process, Pipe, Queue
 # from osim.env import RunEnv
