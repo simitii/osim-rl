@@ -33,6 +33,11 @@ If the command `python -c "import opensim"` runs smoothly, you are done! Otherwi
 
 Note that `source activate opensim-rl` activates the anaconda virtual environment. You need to type it every time you open a new terminal.
 
+
+## For Environment Farming
+* See [farming_scripts](./farming_scripts/) folder.
+
+
 ## Basic usage
 
 To execute 200 iterations of the simulation enter the `python` interpreter and run the following:
