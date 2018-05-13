@@ -44,7 +44,7 @@ observation = env.reset(difficulty = 0)
 for i in range(200):
     observation, reward, done, info = env.step(env.action_space.sample())
 ```
-![Random walk](https://github.com/stanfordnmbl/osim-rl/blob/master/demo/random.gif)
+![Random walk](./demo/random.gif)
 
 The function `env.action_space.sample()` returns a random vector for muscle activations, so, in this example, muscles are activated randomly (red indicates an active muscle and blue an inactive muscle).  Clearly with this technique we won't go too far.
 
