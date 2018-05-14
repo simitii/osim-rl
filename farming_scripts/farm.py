@@ -22,7 +22,7 @@ def standalone_headless_isolated(pq, cq, plock):
     try:
         import traceback
         from osim.env import RunEnv
-        e = RunEnv(visualize=False,max_obstacles=10)
+        e = RunEnv(visualize=True,max_obstacles=0)
         # bind_alternative_pelvis_judgement(e)
         # use_alternative_episode_length(e)
     except Exception as e:
@@ -42,8 +42,8 @@ def standalone_headless_isolated(pq, cq, plock):
         # conn.put(('error',e))
         cq.put(('error',e))
 
-    def floatify(np):
-        return [float(np[i]) for i in range(len(np))]
+    def floatify(n_p):
+        return [float(n_p[i]) for i in range(len(n_p))]
 
     try:
         while True:
@@ -343,6 +343,7 @@ class farm:
             self.pretty('rel '+str(id))
 
     def step(self,id,actions):
+        print('step ' + str(id))
         e = self.eip.get_env_by_id(id)
         if e == False:
             self.pretty(str(id)+' not found on step(), might already be released')
@@ -356,6 +357,7 @@ class farm:
             raise e
 
     def reset(self,id):
+        print('reset' + str(id))
         e = self.eip.get_env_by_id(id)
         if e == False:
             self.pretty(str(id)+' not found on reset(), might already be released')
@@ -393,6 +395,13 @@ class farm:
         except Exception as e:
             traceback.print_exc()
             raise e
+
+    def is_alive(self,id):
+        e = self.eip.get_env_by_id(id)
+        if e == False or not e.is_alive():
+            return False
+        else:
+            return True
 
     def renew_if_needed(self,n=None):
         self.lock.acquire()
