@@ -22,7 +22,7 @@ def standalone_headless_isolated(pq, cq, plock):
     try:
         import traceback
         from osim.env import RunEnv
-        e = RunEnv(visualize=True,max_obstacles=0)
+        e = RunEnv(visualize=False,max_obstacles=0)
         # bind_alternative_pelvis_judgement(e)
         # use_alternative_episode_length(e)
     except Exception as e:
