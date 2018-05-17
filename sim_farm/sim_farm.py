@@ -8,8 +8,7 @@ import numpy as np
 
 import multiprocessing,time,random,threading
 from multiprocessing import Process, Pipe, Queue
-
-from observation_process import generate_observation, get_observation_space
+# from osim.env import RunEnv
 
 ncpu = multiprocessing.cpu_count()
 
@@ -23,7 +22,7 @@ def standalone_headless_isolated(pq, cq, plock):
     try:
         import traceback
         from osim.env import RunEnv
-        e = RunEnv(visualize=False,max_obstacles=0)
+        e = RunEnv(visualize=True,max_obstacles=0)
         # bind_alternative_pelvis_judgement(e)
         # use_alternative_episode_length(e)
     except Exception as e:
@@ -47,7 +46,6 @@ def standalone_headless_isolated(pq, cq, plock):
         return [float(n_p[i]) for i in range(len(n_p))]
 
     try:
-        previous_o = None
         while True:
             # msg = conn.recv()
             # msg = conn.get()
@@ -59,29 +57,28 @@ def standalone_headless_isolated(pq, cq, plock):
             # if not isinstance(msg,tuple):
             #     raise Exception('pipe message received by headless is not a tuple')
 
-            if msg[0] == 'reset': #or (previous_o==None and msg[0]=='step'):
-                o = e.reset(difficulty=0)
-                o = floatify(o)
-                o_processed = generate_observation(o, o)
-                previous_o = o
-                cq.put(o_processed)
-
+            if msg[0] == 'reset':
+                o = e.reset(difficulty=2)
+                # conn.send(floatify(o))
+                cq.put(floatify(o))
+                # conn.put(floatify(o))
             elif msg[0] == 'step':
                 actions = msg[1]
                 o,r,d,i = e.step(np.array(actions))
                 o = floatify(o) # floatify the observation
-                o_processed = generate_observation(o, previous_o)
-                previous_o = o
-                cq.put((o_processed, r, d, i))
+                cq.put((o,r,d,i))
+                # conn.put(ordi)
+                # conn.send(ordi)
             elif msg[0] == 'action_space':
                 a_s = e.action_space
                 r_a_s = (a_s.low.tolist(), a_s.high.tolist(), a_s.shape)
                 cq.put(r_a_s)
             elif msg[0] == 'observation_space':
-                o_s = get_observation_space()
-                r_o_s = (o_s['low'].tolist(), o_s['high'].tolist(),o_s['shape'])
+                o_s = e.observation_space
+                r_o_s = (o_s.low.tolist(), o_s.high.tolist(), o_s.shape)
                 cq.put(r_o_s)
             else:
+                # conn.close()
                 cq.close()
                 pq.close()
                 del e
@@ -426,9 +423,9 @@ class farm:
         self.eip = eipool(ncpu if n is None else n)
 
 # expose the farm via Pyro4
-def main(farm_port):
+def main():
     from pyro_helper import pyro_expose
-    pyro_expose(farm, farm_port, 'farm')
+    pyro_expose(farm,20099,'farm')
 
 def stop(_1,_2):
     print('\nProgram Successfully Exited!')
@@ -441,9 +438,4 @@ def exit_signal_handler():
 
 if __name__ == '__main__':
     exit_signal_handler()
-    import sys
-    try:
-        farm_port = int(sys.argv[1])
-    except:
-        farm_port = 20099
-    main(farm_port)
+    main()
