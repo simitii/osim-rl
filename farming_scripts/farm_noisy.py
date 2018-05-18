@@ -6,13 +6,12 @@
 
 import numpy as np
 
-import multiprocessing
-import time
-import random
-import threading
+import multiprocessing,time,random,threading
 from multiprocessing import Process, Pipe, Queue
 
 from observation_process import generate_observation, get_observation_space
+
+from noise import OrnsteinUhlenbeckActionNoise
 
 ncpu = multiprocessing.cpu_count()
 
@@ -22,11 +21,11 @@ ncpu = multiprocessing.cpu_count()
 def standalone_headless_isolated(pq, cq, plock):
     # locking to prevent mixed-up printing.
     plock.acquire()
-    print('starting headless...', pq, cq)
+    print('starting headless...',pq,cq)
     try:
         import traceback
         from osim.env import RunEnv
-        e = RunEnv(visualize=False, max_obstacles=0)
+        e = RunEnv(visualize=False,max_obstacles=0)
         # bind_alternative_pelvis_judgement(e)
         # use_alternative_episode_length(e)
     except Exception as e:
@@ -44,13 +43,16 @@ def standalone_headless_isolated(pq, cq, plock):
         print('(standalone) got error!!!')
         # conn.send(('error',e))
         # conn.put(('error',e))
-        cq.put(('error', e))
+        cq.put(('error',e))
 
     def floatify(n_p):
         return [float(n_p[i]) for i in range(len(n_p))]
 
     try:
         previous_o = None
+        nb_actions = e.action_space.shape[-1]
+        action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(
+            nb_actions), sigma=0.3 * np.ones(nb_actions))
         while True:
             # msg = conn.recv()
             # msg = conn.get()
@@ -62,7 +64,7 @@ def standalone_headless_isolated(pq, cq, plock):
             # if not isinstance(msg,tuple):
             #     raise Exception('pipe message received by headless is not a tuple')
 
-            if msg[0] == 'reset':  # or (previous_o==None and msg[0]=='step'):
+            if msg[0] == 'reset': #or (previous_o==None and msg[0]=='step'):
                 o = e.reset(difficulty=0)
                 o = floatify(o)
                 o_processed = generate_observation(o, o)
@@ -71,8 +73,9 @@ def standalone_headless_isolated(pq, cq, plock):
 
             elif msg[0] == 'step':
                 actions = msg[1]
-                o, r, d, i = e.step(np.array(actions))
-                o = floatify(o)  # floatify the observation
+                noisy_action = np.array(actions)+action_noise()
+                o, r, d, i = e.step(noisy_action)
+                o = floatify(o) # floatify the observation
                 o_processed = generate_observation(o, previous_o)
                 previous_o = o
                 cq.put((o_processed, r, d, i))
@@ -82,8 +85,7 @@ def standalone_headless_isolated(pq, cq, plock):
                 cq.put(r_a_s)
             elif msg[0] == 'observation_space':
                 o_s = get_observation_space()
-                r_o_s = (o_s['low'].tolist(),
-                         o_s['high'].tolist(), o_s['shape'])
+                r_o_s = (o_s['low'].tolist(), o_s['high'].tolist(),o_s['shape'])
                 cq.put(r_o_s)
             else:
                 cq.close()
@@ -94,8 +96,7 @@ def standalone_headless_isolated(pq, cq, plock):
         traceback.print_exc()
         report(str(e))
 
-    return  # end process
-
+    return # end process
 
 # global process lock
 plock = multiprocessing.Lock()
@@ -104,24 +105,21 @@ tlock = threading.Lock()
 
 # global id issurance
 eid = int(random.random()*100000)
-
-
 def get_eid():
-    global eid, tlock
+    global eid,tlock
     tlock.acquire()
     i = eid
-    eid += 1
+    eid+=1
     tlock.release()
     return i
 
 # class that manages the interprocess communication and expose itself as a RunEnv.
 # reinforced: this class should be long-running. it should reload the process on errors.
 
-
-class ei:  # Environment Instance
+class ei: # Environment Instance
     def __init__(self):
-        self.occupied = False  # is this instance occupied by a remote client
-        self.id = get_eid()  # what is the id of this environment
+        self.occupied = False # is this instance occupied by a remote client
+        self.id = get_eid() # what is the id of this environment
         self.pretty('instance creating')
 
         self.newproc()
@@ -137,10 +135,9 @@ class ei:  # Environment Instance
         else:
             if time.time() - self.last_interaction > 20*60:
                 # if no interaction for more than 20 minutes
-                self.pretty(
-                    'no interaction for too long, self-releasing now. applying for a new id.')
+                self.pretty('no interaction for too long, self-releasing now. applying for a new id.')
 
-                self.id = get_eid()  # apply for a new id.
+                self.id = get_eid() # apply for a new id.
                 self.occupied == False
 
                 self.pretty('self-released.')
@@ -155,10 +152,10 @@ class ei:  # Environment Instance
             self.occupied = True
             self.id = get_eid()
             self.lock.release()
-            return True  # on success
+            return True # on success
         else:
             self.lock.release()
-            return False  # failed
+            return False # failed
 
     def release(self):
         self.lock.acquire()
@@ -171,24 +168,24 @@ class ei:  # Environment Instance
         global plock
         self.timer_update()
 
-        self.pq, self.cq = Queue(1), Queue(1)  # two queue needed
+        self.pq, self.cq = Queue(1), Queue(1) # two queue needed
         # self.pc, self.cc = Pipe()
 
         self.p = Process(
-            target=standalone_headless_isolated,
+            target = standalone_headless_isolated,
             args=(self.pq, self.cq, plock)
         )
         self.p.daemon = True
         self.p.start()
 
-        self.reset_count = 0  # how many times has this instance been reset() ed
+        self.reset_count = 0 # how many times has this instance been reset() ed
         self.step_count = 0
 
         self.timer_update()
         return
 
     # send x to the process
-    def send(self, x):
+    def send(self,x):
         return self.pq.put(x)
         # return self.pc.send(x)
 
@@ -217,9 +214,8 @@ class ei:  # Environment Instance
             self.kill()
             self.newproc()
 
-        if self.reset_count > 50 or self.step_count > 10000:  # if resetted for more than 100 times
-            self.pretty(
-                'environment has been resetted too much. memory leaks and other problems might present. reloading.')
+        if self.reset_count>50 or self.step_count>10000: # if resetted for more than 100 times
+            self.pretty('environment has been resetted too much. memory leaks and other problems might present. reloading.')
 
             self.kill()
             self.newproc()
@@ -230,24 +226,24 @@ class ei:  # Environment Instance
         self.timer_update()
         return r
 
-    def step(self, actions):
+    def step(self,actions):
         self.timer_update()
-        self.send(('step', actions,))
+        self.send(('step',actions,))
         r = self.recv()
         self.timer_update()
-        self.step_count += 1
+        self.step_count+=1
         return r
-
+    
     def get_action_space(self):
         self.send(('action_space',))
         r = self.recv()
         return r
-
+    
     def get_observation_space(self):
         self.send(('observation_space',))
         r = self.recv()
         return r
-
+    
     def kill(self):
         if not self.is_alive():
             self.pretty('process already dead, no need for kill.')
@@ -260,8 +256,7 @@ class ei:  # Environment Instance
                 if not self.is_alive():
                     break
                 else:
-                    self.pretty(
-                        'process is not joining after 5s, still waiting...')
+                    self.pretty('process is not joining after 5s, still waiting...')
 
             self.pretty('process joined.')
 
@@ -274,17 +269,15 @@ class ei:  # Environment Instance
         return self.p.is_alive()
 
     # pretty printing
-    def pretty(self, s):
+    def pretty(self,s):
         print(('(ei) {} ').format(self.id)+str(s))
 
 # class that other classes acquires and releases EIs from.
-
-
-class eipool:  # Environment Instance Pool
-    def pretty(self, s):
+class eipool: # Environment Instance Pool
+    def pretty(self,s):
         print(('(eipool) ')+str(s))
 
-    def __init__(self, n=1):
+    def __init__(self,n=1):
         import threading as th
         self.pretty('starting '+str(n)+' instance(s)...')
         self.pool = [ei() for i in range(n)]
@@ -293,18 +286,18 @@ class eipool:  # Environment Instance Pool
     def acq_env(self):
         self.lock.acquire()
         for e in self.pool:
-            if e.occupy() == True:  # successfully occupied an environment
+            if e.occupy() == True: # successfully occupied an environment
                 self.lock.release()
-                return e  # return the envinstance
+                return e # return the envinstance
 
         self.lock.release()
-        return False  # no available ei
+        return False # no available ei
 
-    def rel_env(self, ei):
+    def rel_env(self,ei):
         self.lock.acquire()
         for e in self.pool:
             if e == ei:
-                e.release()  # freed
+                e.release() # freed
         self.lock.release()
 
     # def num_free(self):
@@ -316,7 +309,7 @@ class eipool:  # Environment Instance Pool
     # def all_free(self):
     #     return self.num_free()==self.num_total()
 
-    def get_env_by_id(self, id):
+    def get_env_by_id(self,id):
         for e in self.pool:
             if e.id == id:
                 return e
@@ -326,15 +319,12 @@ class eipool:  # Environment Instance Pool
         for e in self.pool:
             del e
 
-
 # farm
 # interface with eipool via eids.
 # ! this class is a singleton. must be made thread-safe.
 import traceback
-
-
 class farm:
-    def pretty(self, s):
+    def pretty(self,s):
         print(('(farm) ')+str(s))
 
     def __init__(self):
@@ -343,9 +333,9 @@ class farm:
         import threading as th
         self.lock = th.Lock()
 
-    def acq(self, n=None):
+    def acq(self,n=None):
         self.renew_if_needed(n)
-        result = self.eip.acq_env()  # thread-safe
+        result = self.eip.acq_env() # thread-safe
         if result == False:
             ret = False
         else:
@@ -353,21 +343,19 @@ class farm:
             ret = result.id
         return ret
 
-    def rel(self, id):
+    def rel(self,id):
         e = self.eip.get_env_by_id(id)
         if e == False:
-            self.pretty(
-                str(id)+' not found on rel(), might already be released')
+            self.pretty(str(id)+' not found on rel(), might already be released')
         else:
             self.eip.rel_env(e)
             self.pretty('rel '+str(id))
 
-    def step(self, id, actions):
+    def step(self,id,actions):
         print('step ' + str(id))
         e = self.eip.get_env_by_id(id)
         if e == False:
-            self.pretty(
-                str(id)+' not found on step(), might already be released')
+            self.pretty(str(id)+' not found on step(), might already be released')
             return False
 
         try:
@@ -377,12 +365,11 @@ class farm:
             traceback.print_exc()
             raise e
 
-    def reset(self, id):
+    def reset(self,id):
         print('reset' + str(id))
         e = self.eip.get_env_by_id(id)
         if e == False:
-            self.pretty(
-                str(id)+' not found on reset(), might already be released')
+            self.pretty(str(id)+' not found on reset(), might already be released')
             return False
 
         try:
@@ -392,13 +379,12 @@ class farm:
             traceback.print_exc()
             raise e
 
-    def get_action_space(self, id):
+    def get_action_space(self,id):
         e = self.eip.get_env_by_id(id)
         if e == False:
-            self.pretty(
-                str(id)+' not found on get_action_space(), might already be released')
+            self.pretty(str(id)+' not found on get_action_space(), might already be released')
             return False
-
+        
         try:
             action_space = e.get_action_space()
             return action_space
@@ -406,13 +392,12 @@ class farm:
             traceback.print_exc()
             raise e
 
-    def get_observation_space(self, id):
+    def get_observation_space(self,id):
         e = self.eip.get_env_by_id(id)
         if e == False:
-            self.pretty(
-                str(id)+' not found on get_observation_space(), might already be released')
+            self.pretty(str(id)+' not found on get_observation_space(), might already be released')
             return False
-
+        
         try:
             observation_space = e.get_observation_space()
             return observation_space
@@ -420,50 +405,45 @@ class farm:
             traceback.print_exc()
             raise e
 
-    def is_alive(self, id):
+    def is_alive(self,id):
         e = self.eip.get_env_by_id(id)
         if e == False or not e.is_alive():
             return False
         else:
             return True
 
-    def renew_if_needed(self, n=None):
+    def renew_if_needed(self,n=None):
         self.lock.acquire()
-        if not hasattr(self, 'eip'):
+        if not hasattr(self,'eip'):
             self.pretty('renew because no eipool present')
             self._new(n)
         self.lock.release()
 
-    def forcerenew(self, n=None):
+    def forcerenew(self,n=None):
         self.lock.acquire()
         self.pretty('forced pool renew')
 
-        if hasattr(self, 'eip'):  # if eip exists
+        if hasattr(self,'eip'): # if eip exists
             del self.eip
         self._new(n)
         self.lock.release()
 
-    def _new(self, n=None):
+    def _new(self,n=None):
         self.eip = eipool(ncpu if n is None else n)
 
 # expose the farm via Pyro4
-
-
 def main(farm_port):
     from pyro_helper import pyro_expose
     pyro_expose(farm, farm_port, 'farm')
 
-
-def stop(_1, _2):
+def stop(_1,_2):
     print('\nProgram Successfully Exited!')
     import os
     os._exit(1)
 
-
 def exit_signal_handler():
     import signal
     signal.signal(signal.SIGINT, stop)
-
 
 if __name__ == '__main__':
     exit_signal_handler()
