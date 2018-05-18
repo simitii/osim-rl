@@ -1,3 +1,8 @@
+## Some Additions:
+- Environment Farming
+- Observation space extended to include some important features like velocities.
+
+
 # NIPS2017: Learning to run
 
 This repository contains software required for participation in the NIPS 2017 Challenge: Learning to Run. See more details about the challenge [here](https://www.crowdai.org/challenges/nips-2017-learning-to-run).
