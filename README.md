@@ -1,6 +1,7 @@
-## Some Additions:
+## Additions:
 - Environment Farming
 - Observation space extended to include some important features like velocities.
+- Noisy Action
 
 ## New Folders:
 - farming_scripts => includes scripts to use for training
@@ -27,24 +28,24 @@ On **Windows**, open a command prompt and type:
 
     conda create -n opensim-rl -c kidzik opensim git python=2.7
     activate opensim-rl
+    conda install numpy
+    pip install pyro4
 
 On **Linux/OSX**, run:
 
     conda create -n opensim-rl -c kidzik opensim git python=2.7
     source activate opensim-rl
+    conda install numpy
+    pip install pyro4
 
 These commands will create a virtual environment on your computer with the necessary simulation libraries installed. Next, you need to install our python reinforcement learning environment. Type (on all platforms):
 
     conda install -c conda-forge lapack git
-    pip install git+https://github.com/stanfordnmbl/osim-rl.git
+    pip install git+https://github.com/simitii/osim-rl.git
 
 If the command `python -c "import opensim"` runs smoothly, you are done! Otherwise, please refer to our [FAQ](#frequently-asked-questions) section.
 
 Note that `source activate opensim-rl` activates the anaconda virtual environment. You need to type it every time you open a new terminal.
-
-
-## For Environment Farming
-* See [farming_scripts](./farming_scripts/) folder.
 
 
 ## Basic usage
