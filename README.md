@@ -2,6 +2,10 @@
 - Environment Farming
 - Observation space extended to include some important features like velocities.
 
+## New Folders:
+- farming_scripts => includes scripts to use for training
+- sim_farm => includes scripts to use for see simulation
+
 
 # NIPS2017: Learning to run
 

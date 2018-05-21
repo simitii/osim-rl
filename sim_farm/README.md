@@ -1,4 +1,4 @@
-# Code for Parallel Training(Farming)
+# Code for Simulation
 
 Codes are taken from an open-source code base https://github.com/ctmakro/stanford-osrl and modified according to the requirements of our project. 
 
@@ -8,9 +8,6 @@ Codes are taken from an open-source code base https://github.com/ctmakro/stanfor
   - opensim (the simulation software)
   - Pyro4 (RPC. For communication)
 
-## Parallelism / Farming
-* Since the envirenment is very slow or computationally expensive, farming(running multiple environments parallel) is crutial. 
-* Note: Please read <https://github.com/stanfordnmbl/osim-rl/issues/58> for more information about the slowness of the environment.
 
 ## How to Run
 Assuming all dependencies are installed. Following command should be run on the training machine(a lot of cores needed):
